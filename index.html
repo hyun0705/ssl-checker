@@ -13,7 +13,7 @@
 		}
 
 		body {
-			font-family: 'Segoe UI', sans-serif;
+			font-family: "Segoe UI", sans-serif;
 			max-width: 600px;
 			margin: 50px auto;
 			padding: 20px;
@@ -59,7 +59,7 @@
 			border-color: #667eea;
 		}
 
-		button {
+		#btn {
 			padding: 15px 30px;
 			font-size: 16px;
 			font-weight: bold;
@@ -71,15 +71,15 @@
 			transition: all 0.2s ease;
 		}
 
-		button:hover {
+		#btn:disabled {
+			opacity: 0.6;
+			cursor: not-allowed;
+		}
+
+		#btn:hover {
 			background: #5568d3;
 			transform: translateY(-2px);
 			box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-		}
-
-		button:disabled {
-			opacity: 0.6;
-			cursor: not-allowed;
 		}
 
 		#result {
@@ -146,9 +146,9 @@
 		}
 
 		.history-item:hover {
-			background: #f0f2ff;
-			border-color: #667eea;
-			box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+			background: #fafbff;
+			border-color: #e3e8f7;
+			box-shadow: none;
 		}
 
 		.history-item:last-child {
@@ -168,18 +168,13 @@
 			font-size: 16px;
 			line-height: 1;
 			cursor: pointer;
-			opacity: 0;
-			transition: all 0.2s ease;
 			padding: 0;
-		}
-
-		.history-item:hover .delete-btn {
-			opacity: 1;
+			transition: transform 0.15s ease, color 0.15s ease;
 		}
 
 		.delete-btn:hover {
-			color: #dc3545;
-			transform: translateY(-50%) scale(1.2);
+			transform: translateY(-50%) scale(1.15);
+			color: #555;
 		}
 
 		.history-domain {
@@ -231,7 +226,8 @@
 		<!-- 히스토리 섹션 -->
 		<div id="history-section" style="display: none; margin-bottom: 20px;">
 			<h3 style="font-size: 14px; color: #666; margin-bottom: 10px;">📜 최근 조회 내역</h3>
-			<div id="history-list" style="background: #f8f9fa; padding: 10px; border-radius: 8px; max-height: 200px; overflow-y: auto;">
+			<div id="history-list"
+				style="background: #f8f9fa; padding: 10px; border-radius: 8px; max-height: 200px; overflow-y: auto;">
 				<!-- 히스토리 항목들 -->
 			</div>
 		</div>
@@ -254,10 +250,10 @@
 
 		function saveHistory(domain, status, daysLeft) {
 			const history = getHistory();
-			
+
 			// 중복 제거 (같은 도메인은 최신 것만)
 			const filtered = history.filter(item => item.domain !== domain);
-			
+
 			// 새 항목 추가 (맨 앞에)
 			filtered.unshift({
 				domain: domain,
@@ -265,17 +261,17 @@
 				daysLeft: daysLeft,
 				time: new Date().toISOString()
 			});
-			
+
 			// 최대 5개만 저장
 			const limited = filtered.slice(0, 5);
 			localStorage.setItem('ssl-history', JSON.stringify(limited));
-			
+
 			renderHistory();
 		}
 
 		function deleteHistoryItem(domain, event) {
 			event.stopPropagation(); // 클릭 이벤트 전파 방지
-			
+
 			const history = getHistory();
 			const filtered = history.filter(item => item.domain !== domain);
 			localStorage.setItem('ssl-history', JSON.stringify(filtered));
@@ -287,13 +283,13 @@
 			const past = new Date(timestamp);
 			const diffMs = now - past;
 			const diffMins = Math.floor(diffMs / 60000);
-			
+
 			if (diffMins < 1) return '방금 전';
 			if (diffMins < 60) return `${diffMins}분 전`;
-			
+
 			const diffHours = Math.floor(diffMins / 60);
 			if (diffHours < 24) return `${diffHours}시간 전`;
-			
+
 			const diffDays = Math.floor(diffHours / 24);
 			return `${diffDays}일 전`;
 		}
@@ -302,19 +298,19 @@
 			const history = getHistory();
 			const section = document.getElementById('history-section');
 			const list = document.getElementById('history-list');
-			
+
 			if (history.length === 0) {
 				section.style.display = 'none';
 				return;
 			}
-			
+
 			section.style.display = 'block';
-			
+
 			list.innerHTML = history.map(item => {
-				const statusClass = item.daysLeft < 30 ? 'danger' 
-				                  : item.daysLeft < 90 ? 'warning' 
-				                  : 'safe';
-				
+				const statusClass = item.daysLeft < 30 ? 'danger'
+					: item.daysLeft < 90 ? 'warning'
+						: 'safe';
+
 				return `
 					<div class="history-item" onclick="document.getElementById('domain').value='${item.domain}'; check();">
 						<div class="history-domain">
@@ -365,10 +361,10 @@
 
 			try {
 				// 환경에 따라 API URL 자동 변경
-				const API_URL = window.location.hostname === 'localhost' 
+				const API_URL = window.location.hostname === 'localhost'
 					? 'http://localhost:3000'
 					: window.location.origin;
-				
+
 				const response = await fetch(`${API_URL}/api/check`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
