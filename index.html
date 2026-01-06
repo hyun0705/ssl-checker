@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>SSL 인증서 체커</title>
+	<style>
+		* {
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+		}
+
+		body {
+			font-family: 'Segoe UI', sans-serif;
+			max-width: 600px;
+			margin: 50px auto;
+			padding: 20px;
+			background: #e8eaf6;
+			min-height: 100vh;
+		}
+
+		.container {
+			background: #fafbff;
+			padding: 30px;
+			border-radius: 15px;
+			box-shadow: 0 4px 20px rgba(102, 126, 234, 0.1);
+			border: 1px solid #e3e8f7;
+		}
+
+		h1 {
+			color: #3f4254;
+			text-align: center;
+			margin-bottom: 30px;
+		}
+
+		.input-group {
+			display: flex;
+			gap: 10px;
+			margin-bottom: 20px;
+		}
+
+		input {
+			flex: 1;
+			padding: 15px;
+			font-size: 16px;
+			border: 2px solid #e0e0e0;
+			border-radius: 8px;
+		}
+
+		input:hover {
+			border-color: #667eea;
+			transition: all 0.2s ease;
+		}
+
+		input:focus {
+			outline: none;
+			border-color: #667eea;
+		}
+
+		button {
+			padding: 15px 30px;
+			font-size: 16px;
+			font-weight: bold;
+			background: #667eea;
+			color: white;
+			border: none;
+			border-radius: 8px;
+			cursor: pointer;
+			transition: all 0.2s ease;
+		}
+
+		button:hover {
+			background: #5568d3;
+			transform: translateY(-2px);
+			box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+		}
+
+		button:disabled {
+			opacity: 0.6;
+			cursor: not-allowed;
+		}
+
+		#result {
+			margin-top: 20px;
+			padding: 20px;
+			background: #f0f2ff;
+			border-radius: 8px;
+			line-height: 1.8;
+			display: block;
+			border: 1px solid #e3e8f7;
+		}
+
+		.result-item {
+			padding: 8px 0;
+			border-bottom: 1px solid #e0e0e0;
+		}
+
+		.result-item:last-child {
+			border-bottom: none;
+		}
+
+		.label {
+			font-weight: bold;
+			color: #5f6368;
+		}
+
+		.value {
+			color: #3f4254;
+			margin-left: 10px;
+		}
+
+		.days {
+			display: inline-block;
+			padding: 4px 12px;
+			border-radius: 15px;
+			font-weight: bold;
+		}
+
+		.days.safe {
+			background: #d4edda;
+			color: #155724;
+		}
+
+		.days.warning {
+			background: #fff3cd;
+			color: #856404;
+		}
+
+		.days.danger {
+			background: #f8d7da;
+			color: #721c24;
+		}
+
+		/* 히스토리 스타일 */
+		.history-item {
+			padding: 10px 30px 10px 10px;
+			margin-bottom: 8px;
+			background: #fafbff;
+			border: 1px solid #e3e8f7;
+			border-radius: 6px;
+			cursor: pointer;
+			transition: all 0.2s ease;
+			position: relative;
+		}
+
+		.history-item:hover {
+			background: #f0f2ff;
+			border-color: #667eea;
+			box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+		}
+
+		.history-item:last-child {
+			margin-bottom: 0;
+		}
+
+		.delete-btn {
+			position: absolute;
+			right: 8px;
+			top: 50%;
+			transform: translateY(-50%);
+			background: none;
+			color: #999;
+			border: none;
+			width: 20px;
+			height: 20px;
+			font-size: 16px;
+			line-height: 1;
+			cursor: pointer;
+			opacity: 0;
+			transition: all 0.2s ease;
+			padding: 0;
+		}
+
+		.history-item:hover .delete-btn {
+			opacity: 1;
+		}
+
+		.delete-btn:hover {
+			color: #dc3545;
+			transform: translateY(-50%) scale(1.2);
+		}
+
+		.history-domain {
+			font-weight: bold;
+			color: #3f4254;
+			font-size: 14px;
+		}
+
+		.history-meta {
+			font-size: 12px;
+			color: #7e8299;
+			margin-top: 5px;
+		}
+
+		.history-status {
+			display: inline-block;
+			padding: 2px 8px;
+			border-radius: 10px;
+			font-size: 11px;
+			margin-left: 5px;
+		}
+
+		.history-status.safe {
+			background: #d4edda;
+			color: #155724;
+		}
+
+		.history-status.warning {
+			background: #fff3cd;
+			color: #856404;
+		}
+
+		.history-status.danger {
+			background: #f8d7da;
+			color: #721c24;
+		}
+	</style>
+</head>
+
+<body>
+	<div class="container">
+		<h1>🔒 SSL 인증서 체커</h1>
+
+		<div class="input-group">
+			<input id="domain" placeholder="예: www.google.com, naver.com" />
+			<button id="btn">확인</button>
+		</div>
+
+		<!-- 히스토리 섹션 -->
+		<div id="history-section" style="display: none; margin-bottom: 20px;">
+			<h3 style="font-size: 14px; color: #666; margin-bottom: 10px;">📜 최근 조회 내역</h3>
+			<div id="history-list" style="background: #f8f9fa; padding: 10px; border-radius: 8px; max-height: 200px; overflow-y: auto;">
+				<!-- 히스토리 항목들 -->
+			</div>
+		</div>
+
+		<div id="result">
+			<div style="text-align: center; padding: 40px; color: #999;">
+				<div style="font-size: 48px;">🔍</div>
+				<p>도메인을 입력하고 확인 버튼을 눌러주세요</p>
+				<small>예: www.google.com, naver.com</small>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		// 히스토리 관리 함수들
+		function getHistory() {
+			const history = localStorage.getItem('ssl-history');
+			return history ? JSON.parse(history) : [];
+		}
+
+		function saveHistory(domain, status, daysLeft) {
+			const history = getHistory();
+			
+			// 중복 제거 (같은 도메인은 최신 것만)
+			const filtered = history.filter(item => item.domain !== domain);
+			
+			// 새 항목 추가 (맨 앞에)
+			filtered.unshift({
+				domain: domain,
+				status: status,
+				daysLeft: daysLeft,
+				time: new Date().toISOString()
+			});
+			
+			// 최대 5개만 저장
+			const limited = filtered.slice(0, 5);
+			localStorage.setItem('ssl-history', JSON.stringify(limited));
+			
+			renderHistory();
+		}
+
+		function deleteHistoryItem(domain, event) {
+			event.stopPropagation(); // 클릭 이벤트 전파 방지
+			
+			const history = getHistory();
+			const filtered = history.filter(item => item.domain !== domain);
+			localStorage.setItem('ssl-history', JSON.stringify(filtered));
+			renderHistory();
+		}
+
+		function getTimeAgo(timestamp) {
+			const now = new Date();
+			const past = new Date(timestamp);
+			const diffMs = now - past;
+			const diffMins = Math.floor(diffMs / 60000);
+			
+			if (diffMins < 1) return '방금 전';
+			if (diffMins < 60) return `${diffMins}분 전`;
+			
+			const diffHours = Math.floor(diffMins / 60);
+			if (diffHours < 24) return `${diffHours}시간 전`;
+			
+			const diffDays = Math.floor(diffHours / 24);
+			return `${diffDays}일 전`;
+		}
+
+		function renderHistory() {
+			const history = getHistory();
+			const section = document.getElementById('history-section');
+			const list = document.getElementById('history-list');
+			
+			if (history.length === 0) {
+				section.style.display = 'none';
+				return;
+			}
+			
+			section.style.display = 'block';
+			
+			list.innerHTML = history.map(item => {
+				const statusClass = item.daysLeft < 30 ? 'danger' 
+				                  : item.daysLeft < 90 ? 'warning' 
+				                  : 'safe';
+				
+				return `
+					<div class="history-item" onclick="document.getElementById('domain').value='${item.domain}'; check();">
+						<div class="history-domain">
+							🌐 ${item.domain}
+							<span class="history-status ${statusClass}">${item.status}</span>
+						</div>
+						<div class="history-meta">
+							⏰ ${item.daysLeft}일 남음 · ${getTimeAgo(item.time)}
+						</div>
+						<button class="delete-btn" onclick="deleteHistoryItem('${item.domain}', event)">✕</button>
+					</div>
+				`;
+			}).join('');
+		}
+
+		// 페이지 로드 시 히스토리 표시
+		document.addEventListener('DOMContentLoaded', () => {
+			renderHistory();
+		});
+
+		async function check() {
+			const domain = document.getElementById('domain').value.trim();
+
+			if (!domain) {
+				alert('도메인을 입력해주세요!');
+				return;
+			}
+
+			// 도메인 형식 검증
+			const domainPattern = /^[a-zA-Z0-9][a-zA-Z0-9-_.]*\.[a-zA-Z]{2,}$/;
+			const cleanDomain = domain.split('/')[0].split(':')[0];
+			if (!domainPattern.test(cleanDomain)) {
+				alert('올바른 도메인 형식이 아닙니다!');
+				return;
+			}
+
+			// 로딩 표시
+			const btn = document.getElementById('btn');
+			btn.disabled = true;
+			btn.textContent = '조회 중...';
+
+			document.getElementById('result').innerHTML = `
+				<div style="text-align: center; padding: 30px;">
+					<div style="font-size: 40px;">⏳</div>
+					<div>SSL 정보를 조회하는 중...</div>
+				</div>
+			`;
+
+			try {
+				// 환경에 따라 API URL 자동 변경
+				const API_URL = window.location.hostname === 'localhost' 
+					? 'http://localhost:3000'
+					: window.location.origin;
+				
+				const response = await fetch(`${API_URL}/api/check`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ domain: domain })
+				});
+
+				if (!response.ok) {
+					throw new Error('서버 응답 실패');
+				}
+
+				const data = await response.json();
+
+				if (data.error) {
+					throw new Error(data.error);
+				}
+
+				let daysClass = 'safe';
+				if (data.daysLeft < 30) daysClass = 'danger';
+				else if (data.daysLeft < 90) daysClass = 'warning';
+
+				// 히스토리에 저장
+				saveHistory(data.domain, data.status, data.daysLeft);
+
+				document.getElementById('result').innerHTML = `
+					<!-- 1. 핵심 정보 -->
+					<div class="result-item">
+						<span class="label">🌐 도메인:</span>
+						<span class="value">${data.domain}</span>
+					</div>
+					
+					<div class="result-item">
+						<span class="label">📊 상태:</span>
+						<span class="status ${data.status}">${data.status}</span>
+					</div>
+
+					<div class="result-item">
+						<span class="label">⏰ 남은일수:</span>
+						<span class="days ${daysClass}">${data.daysLeft}일</span>
+					</div>
+					
+					<!-- 2. 날짜 정보 -->
+					<div class="result-item">
+						<span class="label">📅 발급일:</span>
+						<span class="value">${data.validFrom}</span>
+					</div>
+					
+					<div class="result-item">
+						<span class="label">📅 만료일:</span>
+						<span class="value">${data.validTo}</span>
+					</div>
+					
+					<!-- 3. 발급 정보 -->
+					<div class="result-item">
+						<span class="label">🏢 발급기관:</span>
+						<span class="value">${data.issuer}</span>
+					</div>
+					
+					<div class="result-item">
+						<span class="label">🔐 서명 알고리즘:</span>
+						<span class="value">${data.signatureAlgorithm}</span>
+					</div>
+					
+					<!-- 4. 기술 정보 -->
+					${data.alternativeNames && data.alternativeNames.length > 0 ? `
+					<div class="result-item">
+						<span class="label">📋 커버 도메인:</span>
+						<span class="value" style="display: block; line-height: 1.6;">
+							${data.alternativeNames.slice(0, 10).join('<br>')}
+							${data.alternativeNames.length > 10 ? '<br>...' : ''}
+						</span>
+					</div>
+					` : ''}
+					
+					<div class="result-item">
+						<span class="label">📋 버전:</span>
+						<span class="value">X.509 v${data.version}</span>
+					</div>
+					
+					<div class="result-item">
+						<span class="label">🔑 Fingerprint:</span>
+						<span class="value" style="font-size: 11px; word-break: break-all;">
+							${data.fingerprint}
+						</span>
+					</div>
+				`;
+
+			} catch (error) {
+				document.getElementById('result').innerHTML = `
+					<div style="color: #dc3545; padding: 20px; text-align: center; background: #f8d7da; border-radius: 8px;">
+						❌ 오류 발생: ${error.message}
+						<br><small style="color: #721c24; margin-top: 10px; display: block;">서버가 실행 중인지 확인하거나 도메인을 다시 확인해주세요.</small>
+					</div>
+				`;
+			} finally {
+				// 버튼 복구
+				btn.disabled = false;
+				btn.textContent = '확인';
+			}
+		}
+
+		document.getElementById('btn').addEventListener('click', function () {
+			check();
+		});
+
+		document.getElementById('domain').addEventListener('keypress', function (e) {
+			if (e.key === 'Enter') {
+				check();
+			}
+		});
+	</script>
+</body>
+
+</html>
